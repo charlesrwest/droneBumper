@@ -1,0 +1,15 @@
+*~
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+*.pb.cc
+*.pb.h
+*.a
+*.so
+moc_*
+/bin/*
+/doc/*
+Doxyfile
+/build/*
+/.dep/*
