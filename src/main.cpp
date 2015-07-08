@@ -1,9 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 
-
-//Allocate memory for thread stack.
-static THD_WORKING_AREA(thread1WorkingArea, 128);
+//Ask about heap size (is it just limited by static allocations and stack size?), C++11 and THD_WA_SIZE replacement in 3.0
 
 //Define the thread function without using a macro
 /**
@@ -13,7 +11,7 @@ This function flashes on of the LEDs using the ChibiOS functions to handle timin
 static void thread1Function(void *inputUserData)
 {
 while(true)
-{
+{ //Pins referred to as "pads"
 palClearPad(GPIOC, GPIOC_LED_BLUE);
 chThdSleepMilliseconds(500);
 palSetPad(GPIOC, GPIOC_LED_BLUE);
@@ -44,8 +42,9 @@ int main(void)
 halInit();
 chSysInit();
 
-//Start thread, passing it null as the pointer argument
-chThdCreateStatic(thread1WorkingArea, sizeof(thread1WorkingArea), NORMALPRIO, &thread1Function, NULL);
+//Start thread with default heap allocator (using first NULL pointer), passing it null as the pointer argument for function
+//thread_t *thread1 = chThdCreateFromHeap(NULL, THD_WA_SIZE(128), NORMALPRIO, &thread1Function, NULL);
+auto *thread1 = chThdCreateFromHeap(NULL, 256, NORMALPRIO, &thread1Function, NULL);
 
 testClass myClass;
 myClass.method();
