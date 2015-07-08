@@ -78,10 +78,10 @@ endif
 #
 
 # Define project name here
-PROJECT = ch
+PROJECT = droneBumper
 
 # Imported source files and paths
-CHIBIOS = /home/hewhosurvives/c++/hardware/STM32/STM32F0/ChibiOS/
+CHIBIOS = /home/hewhosurvives/c++/hardware/STM32/STM32F0/ChibiOS
 # Startup files.
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/startup_stm32f0xx.mk
 # HAL-OSAL files (optional).
@@ -108,11 +108,11 @@ CSRC = $(STARTUPSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
        $(TESTSRC) \
-       main.c
+       $(wildcard src/*.c)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC =
+CPPSRC = $(wildcard src/*.cpp)
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -137,9 +137,9 @@ TCPPSRC =
 # List ASM source files here
 ASMSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 
-INCDIR = $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
+INCDIR =  $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
          $(HALINC) $(PLATFORMINC) $(BOARDINC) $(TESTINC) \
-         $(CHIBIOS)/os/various
+         $(CHIBIOS)/os/various  src
 
 #
 # Project, sources and paths
@@ -195,7 +195,7 @@ UDEFS =
 UADEFS =
 
 # List all user directories here
-UINCDIR =
+UINCDIR = 
 
 # List the user directory to look for the libraries here
 ULIBDIR =
@@ -209,3 +209,9 @@ ULIBS =
 
 RULESPATH = $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC
 include $(RULESPATH)/rules.mk
+
+#Add rule to flash to board via st-link, sometimes have to run twice, always need to reset after to start program running
+flash:
+	make
+	st-flash --reset erase
+	st-flash --reset write ./build/droneBumper.bin 0x08000000
