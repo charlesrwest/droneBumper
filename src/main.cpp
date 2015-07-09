@@ -44,7 +44,7 @@ chSysInit();
 
 //Start thread with default heap allocator (using first NULL pointer), passing it null as the pointer argument for function
 //thread_t *thread1 = chThdCreateFromHeap(NULL, THD_WA_SIZE(128), NORMALPRIO, &thread1Function, NULL);
-auto *thread1 = chThdCreateFromHeap(NULL, 256, NORMALPRIO, &thread1Function, NULL);
+auto *thread1 = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(128), NORMALPRIO, &thread1Function, NULL);
 
 testClass myClass;
 myClass.method();
