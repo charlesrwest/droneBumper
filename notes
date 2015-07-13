@@ -1,0 +1,18 @@
+For getting information from the ultrasonic, I am basically adapting the code I wrote for the MCHCK and replacing my custom classes wherever possible with nice (and tested) ChibiOS constructs.
+
+High level design:
+On initialization a dynamically generated thread is created, externally triggered interrupts are enabled on each of the ultrasonic echo pins and a memory pool is made by heap allocation.
+
+The dynamically generated thread moves through a list of sets of ultrasonics to trigger.  After each delay, the thread triggers each of the pins in the trigger set by setting them high and then low.
+
+When an interrupt is triggered, it notes the time and which pin/ultrasonic the interrupt was associated with it and creates/allocates a message object from the memory pool.  It then sends the manager's mailbox a pointer to the generated message. We'll have to use a singleton pointer to pass the manager to the interrupt.
+
+In the main loop, a message box recieves pointers to the messages, allocates the message and then frees the associated memory.
+
+///////////////////////////////////////////////////
+Can allocate classes with different memory sources by overloading their new/delete member functions:
+
+void* operator new(size_t);
+void operator delete(void*);
+
+Passing new a pointer to the class to allocate will cause it to invoke its constructor on the memory without allocating new memory.
