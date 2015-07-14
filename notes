@@ -16,3 +16,28 @@ void* operator new(size_t);
 void operator delete(void*);
 
 Passing new a pointer to the class to allocate will cause it to invoke its constructor on the memory without allocating new memory.
+
+////////////////////////////////////////////////
+Pins that are taken on the development board:
+LEDS:
+PC6
+PC7
+PC8
+PC9
+
+button:
+PA0
+
+Linear touch sensor:
+PA2
+PA3
+PA6
+PA7
+PB0
+PB1
+
+USB:
+PA11 
+PA12
+
+

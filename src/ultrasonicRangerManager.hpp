@@ -10,7 +10,7 @@ namespace droneBumper
 
 #define ULTRASONIC_RANGE_HISTORY_SIZE 5 //How many past/present range entries to keep in memory for analysis
 #define MAXIMUM_NUMBER_OF_EXTERNAL_INTERRUPT_PINS 16
-#define TRIGGER_ON_TIME 1000 //How long to hold the trigger pin high to start a pulse
+#define TRIGGER_ON_TIME 1000 //How long to hold the trigger pin high to start a pulse 
 #define TRIGGER_THREAD_STACK_SIZE 128
 
 
@@ -30,7 +30,6 @@ uint32_t echoPinNumber;  //Number of the trigger pin in the port
 systime_t ranges[ULTRASONIC_RANGE_HISTORY_SIZE];//Ranger data/statistics, updated by the main loop
 int32_t currentRangeIndex; //Which ranges[] entry is most recent (currentIndex + 1) ~ previous entry
 systime_t echoPulseStartTime; //When the last recorded pulse start occurred (in microseconds)
-bool expectingPulseReturn; //Whether a pulse has been sent that we can expect to return
 };
 
 
@@ -93,6 +92,7 @@ uint32_t eventBufferSize;
 struct ultrasonicRangerEvent
 {
 struct ultrasonicRanger *ranger; //The ultrasonic ranger associated with the event
+bool transitionedHigh; //True if there was an edge transition high, false if transition low
 systime_t timestamp; //The clock time when the event was recorded
 };
 

@@ -1,69 +1,37 @@
 #include "ch.h"
 #include "hal.h"
 #include "ultrasonicRangerManager.hpp"
+#include "chprintf.h"
 
-//Ask about heap size (is it just limited by static allocations and stack size?), C++11 and THD_WA_SIZE replacement in 3.0
 
-//Define the thread function without using a macro
-/**
-This function flashes on of the LEDs using the ChibiOS functions to handle timing.
-@param inputUserData: A pointer to any user data to pass the function
+/*
+struct ultrasonicRanger
+{
+stm32_gpio_t *triggerPinPort;         //Port of the trigger pin is on
+uint32_t triggerPinNumber;  //Number of the trigger pin in the port
+stm32_gpio_t *echoPinPort;         //Port of the trigger pin is on
+uint32_t echoPinNumber;  //Number of the trigger pin in the port
+systime_t ranges[ULTRASONIC_RANGE_HISTORY_SIZE];//Ranger data/statistics, updated by the main loop
+int32_t currentRangeIndex; //Which ranges[] entry is most recent (currentIndex + 1) ~ previous entry
+systime_t echoPulseStartTime; //When the last recorded pulse start occurred (in microseconds)
+bool expectingPulseReturn; //Whether a pulse has been sent that we can expect to return
+};
 */
-static void thread1Function(void *inputUserData)
-{
-while(true) 
-{ //Pins referred to as "pads"
-palClearPad(GPIOC, GPIOC_LED_BLUE);
-chThdSleepMilliseconds(500);
-palSetPad(GPIOC, GPIOC_LED_BLUE);
-chThdSleepMilliseconds(500);
-}
 
-}
-
-class testClass
+droneBumper::ultrasonicRanger rangers[6] =
 {
-public:
-testClass()
-{
-test = 5;
-}
-
-void method()
-{
-}
-
-int test;
+{GPIOA, 4, GPIOA, 5, {0,0,0,0,0}, 0, 0},
+{GPIOA, 8, GPIOC, 11, {0,0,0,0,0}, 0, 0},     //Set 0
+{GPIOB, 2, GPIOB, 3, {0,0,0,0,0}, 0, 0},
+{GPIOB, 8, GPIOB, 6, {0,0,0,0,0}, 0, 0},     //Set 1
+{GPIOC, 10, GPIOA, 1, {0,0,0,0,0}, 0, 0},
+{GPIOC, 12, GPIOC, 13, {0,0,0,0,0}, 0, 0}  //Set 2
 };
 
+uint32_t rangerSetSizes[3] = {2,2,2};
 
-void externalInterruptCallback(EXTDriver *inputDriver, expchannel_t inputChannel)
-{
-palTogglePad(GPIOC, GPIOC_LED_RED);
-}
-
-//Supports up to 16 different pin interrupts.  Each channel can be linked to the corresponding pin number (first entry -> 1) on one of the ports (A, B, C, etc) but you cannot have two pins with the same number enabled (can't have both A0 and B0).
-static EXTConfig externalInterruptConfig =
-{
-{
-{EXT_CH_MODE_BOTH_EDGES | EXT_CH_MODE_AUTOSTART | EXT_MODE_GPIOA, externalInterruptCallback}, //0
-{EXT_CH_MODE_DISABLED, NULL}, //1
-{EXT_CH_MODE_DISABLED, NULL}, //2
-{EXT_CH_MODE_DISABLED, NULL}, //3
-{EXT_CH_MODE_DISABLED, NULL}, //4
-{EXT_CH_MODE_DISABLED, NULL}, //5
-{EXT_CH_MODE_DISABLED, NULL}, //6
-{EXT_CH_MODE_DISABLED, NULL}, //7
-{EXT_CH_MODE_DISABLED, NULL}, //8
-{EXT_CH_MODE_DISABLED, NULL}, //9
-{EXT_CH_MODE_DISABLED, NULL}, //10
-{EXT_CH_MODE_DISABLED, NULL}, //11
-{EXT_CH_MODE_DISABLED, NULL}, //12
-{EXT_CH_MODE_DISABLED, NULL}, //13
-{EXT_CH_MODE_DISABLED, NULL}, //14
-{EXT_CH_MODE_DISABLED, NULL} //15
-}
-};
+droneBumper::ultrasonicRanger *rangerSets[3] = {&(rangers[0]), &(rangers[2]), &(rangers[4])};
+char stringBuffer[256];
 
 //Main is void due to being embedded program, stack size set in make file
 int main(void)
@@ -72,26 +40,29 @@ int main(void)
 halInit();
 chSysInit();
 
-//Set up pin driven interrupt
-palSetPadMode(GPIOA, 0, PAL_MODE_INPUT_PULLUP);
-extStart(&EXTD1, &externalInterruptConfig);
+droneBumper::ultrasonicRangerManager myRanger(rangerSets, rangerSetSizes, 3, 38000, 50);
 
-//Start thread with default heap allocator (using first NULL pointer), passing it null as the pointer argument for function
-//thread_t *thread1 = chThdCreateFromHeap(NULL, THD_WA_SIZE(128), NORMALPRIO, &thread1Function, NULL);
-auto *thread1 = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(128), NORMALPRIO, &thread1Function, NULL);
+//Turn on serial using usart 1 (Don't connect user USB!)
+sdStart(&SD1, nullptr); //Use usart 4 with default settings, then set pin modes (default serial rate defined in SERIAL_DEFAULT_BITRATE directive in halconf.h)
+palSetPadMode(GPIOA, 9, PAL_MODE_ALTERNATE(1)); //TX 
+palSetPadMode(GPIOA, 10, PAL_MODE_ALTERNATE(1)); //RX
+palSetPadMode(GPIOA, 11, PAL_MODE_ALTERNATE(1)); //RTS
+palSetPadMode(GPIOA, 12, PAL_MODE_ALTERNATE(1)); //CTS
 
-/*
-char memory[sizeof(testClass)];
-testClass *myClass = (testClass *) memory;
-new(myClass) testClass();
-myClass->method();
-*/
-
-systime_t currentTime = chVTGetSystemTimeX();
-//Use with chVTTimeElapsedSinceX
+int numberOfCharactersInString = 0;
 
 while(true)
 {
-chThdSleepMilliseconds(5000);
+myRanger.updateRanges();
+
+for(int i=0; i < 6; i++)
+{
+chprintf((BaseSequentialStream *) &SD1, "Range %d: %lu %lu %lu %lu %lu\r\n", i, rangers[i].ranges[(rangers[i].currentRangeIndex )%5], rangers[i].ranges[(rangers[i].currentRangeIndex +1)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +2)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +3)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +4)%5]);
+//sdWrite(&SD1, (const uint8_t *) stringBuffer, numberOfCharactersInString);
+}
+
+
+palTogglePad(GPIOC, GPIOC_LED_RED);
+chThdSleepMilliseconds(500);
 }
 }

@@ -63,7 +63,6 @@ pinNumberToRanger[rangerSets[ii][i].echoPinNumber] = &rangerSets[ii][i];
 
 rangerSets[ii][i].currentRangeIndex = 0;
 rangerSets[ii][i].echoPulseStartTime = 0;
-rangerSets[ii][i].expectingPulseReturn = false;
 
 for(uint32_t a = 0; a < ULTRASONIC_RANGE_HISTORY_SIZE; a++)
 {
@@ -112,6 +111,16 @@ chMBReset(&notificationInterface);
 chHeapFree((void *) memoryForMailbox);
 isValid = false;
 return;
+}
+
+//Set clear trigger pins and set them as outputs
+for(uint32_t ii=0; ii<numberOfRangerSets; ii++)
+{
+for(uint32_t i=0; i<rangerSetSizes[ii]; i++)
+{
+palClearPad(rangerSets[ii][i].triggerPinPort, rangerSets[ii][i].triggerPinNumber);
+palSetPadMode(rangerSets[ii][i].triggerPinPort, rangerSets[ii][i].triggerPinNumber, PAL_MODE_OUTPUT_PUSHPULL);
+}
 }
 
 rangerManagerSingleton = this;
@@ -185,10 +194,13 @@ bool ultrasonicRangerManager::updateRanges()
 {
 while(true) //If there are messages, process them
 {
+chSysLock(); //Establish kernel lock
 if(chMBGetUsedCountI(&notificationInterface) == 0)
 {
+chSysUnlock(); //Unlock kernel
 return true; //All messages processed without error, so return true
 }
+chSysUnlock(); //Unlock kernel
 
 msg_t buffer;
 if(chMBFetch(&notificationInterface, &buffer, TIME_IMMEDIATE) != MSG_OK)
@@ -201,7 +213,7 @@ struct ultrasonicRangerEvent *messagePointer = (struct ultrasonicRangerEvent *) 
 //Use information from the message to update the ranges
 struct ultrasonicRanger *ranger = messagePointer->ranger;
 
-if(!(ranger->expectingPulseReturn))
+if(messagePointer->transitionedHigh)
 {//This is the pulse start, so just store the start time
 ranger->echoPulseStartTime = messagePointer->timestamp;
 }
@@ -249,6 +261,10 @@ palSetPad(currentSet[i].triggerPinPort, currentSet[i].triggerPinNumber);
 chThdSleepMicroseconds(TRIGGER_ON_TIME); //Hold high for 1 millisecond
 for(int i=0; i < currentSetSize; i++)
 {
+if(currentSet[i].triggerPinPort == GPIOA && currentSet[i].triggerPinNumber == 4)
+{
+palClearPad(GPIOC, GPIOC_LED_BLUE);
+}
 palClearPad(currentSet[i].triggerPinPort, currentSet[i].triggerPinNumber);
 } 
 
@@ -269,31 +285,44 @@ void droneBumper::echoPinInterruptCallback(EXTDriver *inputDriver, expchannel_t 
 {
 (void ) inputDriver; //Get rid of warnings
 
+palTogglePad(GPIOC, GPIOC_LED_BLUE);
+
 //Get current time
 systime_t eventTime = chVTGetSystemTimeX(); //Get time when this interrupt occurred
+
 
 if(rangerManagerSingleton == nullptr || inputChannel >= MAXIMUM_NUMBER_OF_EXTERNAL_INTERRUPT_PINS)
 {
 return; //No ranger manager or invalid channel, so can't do anything
 }
 
+
+
 //Allocate memory for message
+chSysLockFromISR(); //Establish kernel lock
 struct ultrasonicRangerEvent *message = (struct ultrasonicRangerEvent *) chPoolAllocI((memory_pool_t *) &(rangerManagerSingleton->messageMemoryPool));
 if(message == nullptr)
 {
+chSysUnlockFromISR(); //Release kernel lock
 return; //Couldn't allocate memory for message, so can't do anything
 }
+chSysUnlockFromISR(); //Release kernel lock
 
 //Initialize message
 message->timestamp = eventTime;
 message->ranger = rangerManagerSingleton->pinNumberToRanger[inputChannel];
+message->transitionedHigh = palReadPad(message->ranger->echoPinPort, message->ranger->echoPinNumber); //Set true if high, false if low 
 
 //Send pointer to message
+chSysLockFromISR(); //Establish kernel lock
 if(chMBPostI((mailbox_t *) &(rangerManagerSingleton->notificationInterface), (msg_t) message) != MSG_OK)
 {
 //Couldn't post message, so deallocate memory that was allocated for it
 chPoolFreeI((memory_pool_t *) &(rangerManagerSingleton->messageMemoryPool), message);
+//Don't forget to unlock if you return here
 }
+chSysUnlockFromISR(); //Release kernel lock
+
 
 }
 
