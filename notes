@@ -40,4 +40,6 @@ USB:
 PA11 
 PA12
 
+//
+Current sytem time measurements seem to be millisecond resolution.  Might want to look into increasing that resolution.
 

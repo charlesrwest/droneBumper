@@ -81,7 +81,7 @@ endif
 PROJECT = droneBumper
 
 # Imported source files and paths
-CHIBIOS = /home/hewhosurvives/c++/hardware/STM32/STM32F0/ChibiOS
+CHIBIOS = /home/charlesrwest/c++/hardware/STM32/STM32F0/ChibiOS
 # Startup files.
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/startup_stm32f0xx.mk
 # HAL-OSAL files (optional).
@@ -216,3 +216,8 @@ flash:
 	make
 	st-flash --reset erase
 	st-flash --reset write ./build/droneBumper.bin 0x08000000
+
+#Add rule to flash to board via built-in USB bootloader (need to have boot0 connected to VDD at boot to be able to use bootloader)
+dfu-flash:
+	make #Compile if it hasn't been
+	dfu-util -a 0 -d 0483:df11 --dfuse-address 0x08000000 -D ./build/droneBumper.bin #Flash using dfu-util
