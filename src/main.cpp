@@ -18,19 +18,28 @@ bool expectingPulseReturn; //Whether a pulse has been sent that we can expect to
 };
 */
 
-droneBumper::ultrasonicRanger rangers[6] =
+droneBumper::ultrasonicRanger rangers[9] =
 {
-{GPIOA, 4, GPIOA, 5, {0,0,0,0,0}, 0, 0},
-{GPIOA, 8, GPIOC, 11, {0,0,0,0,0}, 0, 0},     //Set 0
-{GPIOB, 2, GPIOB, 3, {0,0,0,0,0}, 0, 0},
-{GPIOB, 8, GPIOB, 6, {0,0,0,0,0}, 0, 0},     //Set 1
-{GPIOC, 10, GPIOA, 1, {0,0,0,0,0}, 0, 0},
-{GPIOC, 12, GPIOC, 13, {0,0,0,0,0}, 0, 0}  //Set 2
+{GPIOC, 13, GPIOF, 0, {0,0,0,0,0}, 0, 0},
+{GPIOC, 14, GPIOF, 1, {0,0,0,0,0}, 0, 0},     //Set 0
+//{GPIOC, 15, GPIOB, 7, {0,0,0,0,0}, 0, 0},     
+//{GPIOA, 2, GPIOB, 8, {0,0,0,0,0}, 0, 0}, //Set 1
+//{GPIOA, 3, GPIOB, 9, {0,0,0,0,0}, 0, 0},  
+//{GPIOB, 15, GPIOB, 2, {0,0,0,0,0}, 0, 0}, //Set 2 
+//{GPIOA, 8, GPIOB, 10, {0,0,0,0,0}, 0, 0}, 
+//{GPIOA, 9, GPIOB, 11, {0,0,0,0,0}, 0, 0},  //Set 3 
+
+//{GPIOA, 10, GPIOB, 13, {0,0,0,0,0}, 0, 0}  //Set 4
 };
 
-uint32_t rangerSetSizes[3] = {2,2,2};
+//uint32_t rangerSetSizes[5] = {2,2,2,2,1};
 
-droneBumper::ultrasonicRanger *rangerSets[3] = {&(rangers[0]), &(rangers[2]), &(rangers[4])};
+uint32_t rangerSetSizes[5] = {1,2,2,2,1};
+
+//droneBumper::ultrasonicRanger *rangerSets[5] = {&(rangers[0]), &(rangers[2]), &(rangers[4]), &(rangers[6]), &(rangers[8])};
+
+droneBumper::ultrasonicRanger *rangerSets[1] = {&(rangers[0])};
+
 char stringBuffer[256];
 
 //Main is void due to being embedded program, stack size set in make file
@@ -40,14 +49,22 @@ int main(void)
 halInit();
 chSysInit();
 
-droneBumper::ultrasonicRangerManager myRanger(rangerSets, rangerSetSizes, 3, 38000, 50);
+//droneBumper::ultrasonicRangerManager myRanger(rangerSets, rangerSetSizes, 5, 38000, 50);
 
-//Turn on serial using usart 1 (Don't connect user USB!)
-sdStart(&SD1, nullptr); //Use usart 4 with default settings, then set pin modes (default serial rate defined in SERIAL_DEFAULT_BITRATE directive in halconf.h)
-palSetPadMode(GPIOA, 9, PAL_MODE_ALTERNATE(1)); //TX 
-palSetPadMode(GPIOA, 10, PAL_MODE_ALTERNATE(1)); //RX
-palSetPadMode(GPIOA, 11, PAL_MODE_ALTERNATE(1)); //RTS
-palSetPadMode(GPIOA, 12, PAL_MODE_ALTERNATE(1)); //CTS
+droneBumper::ultrasonicRangerManager myRanger(rangerSets, rangerSetSizes, 1, 38000, 50);
+
+//Turn on serial using usart (Don't connect user USB!)
+sdStart(&SD2, nullptr); //Use usart 2 with default settings, then set pin modes (default serial rate defined in SERIAL_DEFAULT_BITRATE directive in halconf.h)
+palSetPadMode(GPIOA, 0, PAL_MODE_ALTERNATE(1)); //CTS
+palSetPadMode(GPIOA, 1, PAL_MODE_ALTERNATE(1)); //RTS
+palSetPadMode(GPIOA, 14, PAL_MODE_ALTERNATE(1)); //TX
+palSetPadMode(GPIOA, 15, PAL_MODE_ALTERNATE(3)); //RX
+
+
+
+//Enable LED
+palSetPadMode(GPIOB, 6, PAL_MODE_OUTPUT_PUSHPULL);
+palClearPad(GPIOB, 6);
 
 int numberOfCharactersInString = 0;
 
@@ -55,14 +72,14 @@ while(true)
 {
 myRanger.updateRanges();
 
-for(int i=0; i < 6; i++)
+for(int i=0; i < 2; i++)
 {
-chprintf((BaseSequentialStream *) &SD1, "Range %d: %lu %lu %lu %lu %lu\r\n", i, rangers[i].ranges[(rangers[i].currentRangeIndex )%5], rangers[i].ranges[(rangers[i].currentRangeIndex +1)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +2)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +3)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +4)%5]);
+chprintf((BaseSequentialStream *) &SD2, "Range %d: %lu %lu %lu %lu %lu\r\n", i, rangers[i].ranges[(rangers[i].currentRangeIndex )%5], rangers[i].ranges[(rangers[i].currentRangeIndex +1)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +2)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +3)%5], rangers[i].ranges[(rangers[i].currentRangeIndex +4)%5]);
 //sdWrite(&SD1, (const uint8_t *) stringBuffer, numberOfCharactersInString);
 }
 
 
-palTogglePad(GPIOC, GPIOC_LED_RED);
+//palTogglePad(GPIOB, 6);
 chThdSleepMilliseconds(500);
 }
 }
