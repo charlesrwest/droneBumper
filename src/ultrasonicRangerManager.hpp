@@ -1,5 +1,4 @@
-#ifndef  ULTRASONICRANGERMANAGERHPP
-#define ULTRASONICRANGERMANAGERHPP
+#pragma once
 
 #include "ch.h"
 #include "hal.h"
@@ -112,4 +111,3 @@ void echoPinInterruptCallback(EXTDriver *inputDriver, expchannel_t inputChannel)
 
 }
 
-#endif 
